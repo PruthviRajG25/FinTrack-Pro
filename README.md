@@ -1,4 +1,4 @@
-# 💸 FinTrack Pro (Budget & Expense Tracker)
+# 💸 FinTrack Pro (Budget and Expense Tracker)
 
 Track spending, set category budgets, and view analytics in a clean dashboard UI. 📊
 
