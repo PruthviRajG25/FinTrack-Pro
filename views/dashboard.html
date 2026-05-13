@@ -298,6 +298,43 @@
       .toast { min-width: auto; width: calc(100vw - 32px); max-width: calc(100vw - 32px); }
       .toast-wrap { right: 16px; left: 16px; }
     }
+     /* Floating AI button */
+    .ai-fab {
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      z-index: 1000;
+      width: 54px;
+      height: 54px;
+      border-radius: 999px;
+      border: 1px solid rgba(148,163,184,0.22);
+      background: linear-gradient(135deg, rgba(79,70,229,0.95), rgba(124,58,237,0.95));
+      color: white;
+      display: grid;
+      place-items: center;
+      box-shadow: 0 18px 45px rgba(79,70,229,0.25);
+      cursor: pointer;
+    }
+    @media (max-width: 768px) {
+      .ai-fab { bottom: 96px; }
+    }
+    .ai{
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      z-index: 1000;
+      width: 54px;
+      height: 54px;
+      border-radius: 999px;
+      border: 1px solid rgba(148,163,184,0.22);
+      background: linear-gradient(135deg, rgba(79,70,229,0.95), rgba(124,58,237,0.95));
+      color: white;
+      display: grid;
+      place-items: center;
+      box-shadow: 0 18px 45px rgba(79,70,229,0.25);
+      cursor: pointer;
+    }
+   
   </style>
 </head>
 <body>
@@ -575,9 +612,28 @@
 
     <footer style="margin-top:32px;padding:20px 0;border-top:1px solid var(--border);text-align:center;font-size:13px;color:var(--muted);">
       <div style="font-weight:600;color:var(--text);margin-bottom:4px;">Personal Budget Tracker</div>
+     <div class="terms" style="margin:8px 0;">
+  <a 
+    href="terms.html" 
+    target="_blank"
+    style="
+      color: var(--primary);
+      text-decoration: none;
+      font-weight: 600;
+      transition: 0.2s;
+    "
+  >
+    <i class="fa-solid fa-shield-halved"></i>
+    Privacy Policy & Terms of Service
+  </a>
+</div>
       <div>Made with <i class="fa-solid fa-heart" style="color:#f43f5e;"></i> by <span style="color:var(--primary);font-weight:600;">Pruthvi Raj</span> &amp; <span style="color:var(--primary);font-weight:600;">Sanjay</span> · © 2026</div>
     </footer>
   </main>
+   <button class="ai-fab" type="button" data-bs-toggle="offcanvas" data-bs-target="#aiChat" aria-controls="aiChat" title="FinTrack AI">
+    <a href="https://chatgpt.com" target="https://chatgpt.com" class="ai"><i class="fa-solid fa-robot">Ask AI</i></a>
+  </button>
+
 
   <div class="toast-wrap" id="toast-wrap"></div>
 
