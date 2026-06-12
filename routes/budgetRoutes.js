@@ -1,5 +1,5 @@
 const express = require('express');
-const pool = require('../config/db');
+const Budget = require('../models/Budget');
 const { verifyToken } = require('../middleware/auth');
 
 const router = express.Router();
@@ -13,13 +13,7 @@ router.post('/', verifyToken, async (req, res) => {
       return res.status(400).json({ error: 'category and limit_amount are required' });
     }
 
-    const sql = `
-      INSERT INTO budgets (user_id, category, limit_amount)
-      VALUES (?, ?, ?)
-      ON DUPLICATE KEY UPDATE limit_amount = VALUES(limit_amount)
-    `;
-
-    await pool.execute(sql, [req.userId, category, limit_amount]);
+    await Budget.updateLimit(req.userId, category, limit_amount);
     return res.status(200).json({ message: 'Budget limit updated successfully' });
   } catch (error) {
     console.error(error);
@@ -29,11 +23,8 @@ router.post('/', verifyToken, async (req, res) => {
 
 router.get('/', verifyToken, async (req, res) => {
   try {
-    const [rows] = await pool.execute(
-      'SELECT category, limit_amount FROM budgets WHERE user_id = ?',
-      [req.userId]
-    );
-    return res.json(rows);
+    const budgets = await Budget.getLimits(req.userId);
+    return res.json(budgets);
   } catch (error) {
     console.error(error);
     return res.status(500).json({ error: 'Failed to fetch budgets' });
@@ -49,12 +40,9 @@ router.delete('/:category', verifyToken, async (req, res) => {
       return res.status(400).json({ error: 'category is required' });
     }
 
-    const [result] = await pool.execute(
-      'DELETE FROM budgets WHERE user_id = ? AND category = ?',
-      [req.userId, category]
-    );
+    const deleted = await Budget.deleteByCategory(req.userId, category);
 
-    if (!result.affectedRows) {
+    if (!deleted) {
       return res.status(404).json({ error: 'Budget not found' });
     }
 

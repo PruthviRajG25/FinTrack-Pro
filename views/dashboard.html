@@ -627,7 +627,7 @@
     Privacy Policy & Terms of Service
   </a>
 </div>
-      <div>Made with <i class="fa-solid fa-heart" style="color:#f43f5e;"></i> by <span style="color:var(--primary);font-weight:600;">Pruthvi Raj</span> &amp; <span style="color:var(--primary);font-weight:600;">Sanjay</span> · © 2026</div>
+      <div>Made with <i class="fa-solid fa-heart" style="color:#f43f5e;"></i> by <span style="color:var(--primary);font-weight:600;">Pruthvi Raj</span>  · © 2026</div>
     </footer>
   </main>
    <button class="ai-fab" type="button" data-bs-toggle="offcanvas" data-bs-target="#aiChat" aria-controls="aiChat" title="FinTrack AI">
@@ -895,7 +895,7 @@
               <div class="meta">${escapeHtml(t.category)} · ${date}</div>
             </div>
             <div class="amt"><i class="fa-solid ${dir}" style="font-size:10px;margin-right:4px"></i>${fmt(t.amount)}</div>
-            <button class="tx-del" onclick="deleteTx(${t.id})" title="Delete"><i class="fa-solid fa-trash"></i></button>
+            <button class="tx-del" onclick="deleteTx('${t.id}')" title="Delete"><i class="fa-solid fa-trash"></i></button>
           </div>`;
       }).join('');
     }
@@ -1019,7 +1019,7 @@
             <td><i class="fa-solid ${ico}" style="color:var(--muted);margin-right:6px"></i>${escapeHtml(t.category)}</td>
             <td><span class="badge ${t.type}">${t.type}</span></td>
             <td style="text-align:right;font-weight:700;color:${color};font-variant-numeric:tabular-nums">${sign}${fmt(t.amount)}</td>
-            <td style="text-align:right"><button class="tx-del" onclick="deleteTx(${t.id})"><i class="fa-solid fa-trash"></i></button></td>
+            <td style="text-align:right"><button class="tx-del" onclick="deleteTx('${t.id}')"><i class="fa-solid fa-trash"></i></button></td>
           </tr>`;
       }).join('');
     }

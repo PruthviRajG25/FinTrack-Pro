@@ -1,60 +1,81 @@
-const pool = require('../config/db');
+const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
+
+const userSchema = new mongoose.Schema({
+  email: { type: String, required: true, unique: true, lowercase: true, trim: true },
+  password: { type: String, required: true },
+  name: { type: String, required: true },
+  monthly_budget: { type: Number, default: null },
+  created_at: { type: Date, default: Date.now }
+});
+
+// Map _id to id when returning JSON
+userSchema.set('toJSON', {
+  virtuals: true,
+  versionKey: false,
+  transform: function (doc, ret) {
+    ret.id = ret._id.toString();
+    delete ret._id;
+  }
+});
+
+const UserModel = mongoose.model('User', userSchema);
 
 class User {
   static async findByEmail(email) {
-    const [rows] = await pool.execute('SELECT * FROM users WHERE email = ?', [email]);
-    return rows[0] || null;
+    if (!email) return null;
+    const user = await UserModel.findOne({ email: email.toLowerCase() });
+    return user ? user.toJSON() : null;
   }
 
   static async findById(id) {
-    const [rows] = await pool.execute(
-      'SELECT id, email, name, monthly_budget, created_at FROM users WHERE id = ?',
-      [id]
-    );
-    return rows[0] || null;
+    if (!mongoose.Types.ObjectId.isValid(id)) return null;
+    const user = await UserModel.findById(id).select('-password');
+    return user ? user.toJSON() : null;
   }
 
   static async findByIdWithPassword(id) {
-    const [rows] = await pool.execute('SELECT * FROM users WHERE id = ?', [id]);
-    return rows[0] || null;
+    if (!mongoose.Types.ObjectId.isValid(id)) return null;
+    const user = await UserModel.findById(id);
+    return user ? user.toJSON() : null;
   }
 
   static async create(email, password, name) {
-    const [existingRows] = await pool.execute('SELECT id FROM users WHERE email = ?', [
-      email,
-    ]);
-    if (existingRows.length > 0) {
+    if (!email || !password || !name) {
+      throw new Error('Email, password, and name are required');
+    }
+    const existing = await UserModel.findOne({ email: email.toLowerCase() });
+    if (existing) {
       throw new Error('User already exists');
     }
     const hashedPassword = await bcrypt.hash(password, 10);
-    const [result] = await pool.execute(
-      'INSERT INTO users (email, password, name) VALUES (?, ?, ?)',
-      [email, hashedPassword, name]
-    );
-    const [rows] = await pool.execute('SELECT id, email, name FROM users WHERE id = ?', [
-      result.insertId,
-    ]);
-    return rows[0];
+    const user = await UserModel.create({
+      email: email.toLowerCase(),
+      password: hashedPassword,
+      name,
+    });
+    return user.toJSON();
   }
 
   static async updateName(id, name) {
-    const [result] = await pool.execute('UPDATE users SET name = ? WHERE id = ?', [name, id]);
-    if (result.affectedRows === 0) return null;
-    const [rows] = await pool.execute('SELECT id, email, name FROM users WHERE id = ?', [id]);
-    return rows[0] || null;
+    if (!mongoose.Types.ObjectId.isValid(id)) return null;
+    const user = await UserModel.findByIdAndUpdate(
+      id,
+      { name },
+      { new: true }
+    ).select('-password');
+    return user ? user.toJSON() : null;
   }
 
   static async updatePassword(id, newPassword) {
-    const hashed = await bcrypt.hash(newPassword, 10);
-    const [result] = await pool.execute('UPDATE users SET password = ? WHERE id = ?', [
-      hashed,
-      id,
-    ]);
-    return result.affectedRows > 0;
+    if (!mongoose.Types.ObjectId.isValid(id)) return false;
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    const result = await UserModel.findByIdAndUpdate(id, { password: hashedPassword });
+    return !!result;
   }
 
   static async verifyPassword(hashedPassword, plainPassword) {
+    if (!hashedPassword || !plainPassword) return false;
     return bcrypt.compare(plainPassword, hashedPassword);
   }
 }

@@ -1,32 +1,51 @@
-const pool = require('../config/db');
+const mongoose = require('mongoose');
+
+const transactionSchema = new mongoose.Schema({
+  user_id: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  description: { type: String, required: true, trim: true },
+  amount: { type: Number, required: true },
+  type: { type: String, enum: ['income', 'expense'], required: true },
+  category: { type: String, required: true, trim: true },
+  date: { type: Date, default: Date.now }
+});
+
+transactionSchema.set('toJSON', {
+  virtuals: true,
+  versionKey: false,
+  transform: function (doc, ret) {
+    ret.id = ret._id.toString();
+    delete ret._id;
+    if (ret.user_id) ret.user_id = ret.user_id.toString();
+  }
+});
+
+const TransactionModel = mongoose.model('Transaction', transactionSchema);
 
 class Transaction {
   static async getByUserId(userId) {
-    const [rows] = await pool.execute(
-      'SELECT * FROM transactions WHERE user_id = ? ORDER BY date DESC',
-      [userId]
-    );
-    return rows;
+    if (!mongoose.Types.ObjectId.isValid(userId)) return [];
+    const txs = await TransactionModel.find({ user_id: userId }).sort({ date: -1 });
+    return txs.map(tx => tx.toJSON());
   }
 
   static async create(userId, description, amount, type, category) {
-    const [result] = await pool.execute(
-      `INSERT INTO transactions (user_id, description, amount, type, category)
-       VALUES (?, ?, ?, ?, ?)`,
-      [userId, description, amount, type, category]
-    );
-    const [rows] = await pool.execute('SELECT * FROM transactions WHERE id = ?', [
-      result.insertId,
-    ]);
-    return rows[0] || null;
+    if (!mongoose.Types.ObjectId.isValid(userId)) return null;
+    const tx = await TransactionModel.create({
+      user_id: userId,
+      description,
+      amount,
+      type,
+      category
+    });
+    return tx.toJSON();
   }
 
   static async delete(transactionId, userId) {
-    const [result] = await pool.execute(
-      'DELETE FROM transactions WHERE id = ? AND user_id = ?',
-      [transactionId, userId]
-    );
-    return result.affectedRows > 0;
+    if (!mongoose.Types.ObjectId.isValid(transactionId) || !mongoose.Types.ObjectId.isValid(userId)) {
+      return false;
+    }
+    const result = await TransactionModel.deleteOne({ _id: transactionId, user_id: userId });
+    return result.deletedCount > 0;
   }
 }
 
