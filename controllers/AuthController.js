@@ -36,7 +36,13 @@ class AuthController {
       const ok = await User.verifyPassword(user.password, password);
       if (!ok) return res.status(401).json({ error: 'Invalid credentials' });
 
-      const token = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, {
+      const secret = process.env.JWT_SECRET;
+      if (!secret) {
+        console.error("❌ ERROR: JWT_SECRET environment variable is not defined!");
+        return res.status(500).json({ error: 'JWT_SECRET environment variable is missing on the server. Please add it to your Vercel Environment Variables.' });
+      }
+
+      const token = jwt.sign({ id: user.id, email: user.email }, secret, {
         expiresIn: '24h',
       });
       res.json({

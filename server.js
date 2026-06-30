@@ -13,6 +13,18 @@ app.use(express.json());
 // Serve Static Files (Frontend)
 app.use(express.static(path.join(__dirname, 'views')));
 
+// Database connection check middleware for API routes
+app.use('/api', (req, res, next) => {
+  const mongoose = require('mongoose');
+  const state = mongoose.connection.readyState;
+  if (state === 0 || state === 3) {
+    return res.status(503).json({
+      error: 'Database connection is not established. If you are running on Vercel, please ensure MONGODB_URI is correctly configured in your Project Settings (Environment Variables).'
+    });
+  }
+  next();
+});
+
 // Mount API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/budgets', budgetRoutes);
@@ -25,14 +37,17 @@ app.use('/api', (req, res) => {
 
 const PORT = process.env.PORT || 5000;
 
-// Initialize DB and Start Server
-(async () => {
-  try {
-    await connectDB();
-    app.listen(PORT, '0.0.0.0', () => {
-      console.log(`🚀 FinTrack Pro running on http://localhost:${PORT}`);
-    });
-  } catch (err) {
-    console.error("Critical Failure:", err);
-  }
-})();
+// Initialize DB
+connectDB().catch(err => {
+  console.error("Critical Failure:", err);
+});
+
+// Start Server locally
+if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 FinTrack Pro running on http://localhost:${PORT}`);
+  });
+}
+
+module.exports = app;
+
