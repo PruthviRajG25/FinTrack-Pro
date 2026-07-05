@@ -1,30 +1,45 @@
 const mongoose = require('mongoose');
 require('dotenv').config();
 
-const connectDB = async () => {
-  let uri = process.env.MONGODB_URI;
-  const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL;
+const resolveMongoUri = () => {
+  return process.env.MONGODB_URI || process.env.MONGO_URI || process.env.MONGODB_URL || process.env.MONGO_URL || null;
+};
 
-  if (!uri) {
-    if (isProduction) {
-      console.error("❌ ERROR: MONGODB_URI environment variable is missing on Vercel/Production!");
-      console.error("Please configure MONGODB_URI in your Vercel Project Settings (Environment Variables) with your MongoDB connection string.");
-      throw new Error("MONGODB_URI environment variable is missing in production");
-    } else {
-      uri = 'mongodb://127.0.0.1:27017/FinTrack_db';
-      console.log(`ℹ️ MONGODB_URI not set. Falling back to local MongoDB: ${uri}`);
+const LOCAL_FALLBACK_URI = 'mongodb://127.0.0.1:27017/FinTrack_db';
+
+const connectDB = async () => {
+  const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL;
+  const configuredUri = resolveMongoUri();
+  const candidates = [];
+
+  if (!isProduction) {
+    candidates.push(LOCAL_FALLBACK_URI);
+  }
+
+  if (configuredUri) {
+    candidates.push(configuredUri);
+  }
+
+  for (const candidate of candidates) {
+    try {
+      await mongoose.connect(candidate, {
+        serverSelectionTimeoutMS: 5000,
+      });
+      console.log('✅ MongoDB Connected Successfully');
+      return mongoose.connection;
+    } catch (err) {
+      const message = err?.message || String(err);
+      if (!isProduction || candidate === configuredUri) {
+        console.warn(`⚠️ MongoDB connection unavailable for ${candidate}: ${message}`);
+      }
     }
   }
 
-  try {
-    await mongoose.connect(uri, {
-      serverSelectionTimeoutMS: 5000, // Timeout after 5s instead of 30s
-    });
-    console.log("✅ MongoDB Connected Successfully");
-  } catch (err) {
-    console.error("❌ MongoDB Connection Failure:", err.message);
-    throw err;
+  if (isProduction) {
+    console.warn('⚠️ MongoDB is unavailable; continuing without a database connection for this serverless cold start.');
   }
+
+  return null;
 };
 
 module.exports = {

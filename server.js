@@ -13,6 +13,10 @@ app.use(express.json());
 // Serve Static Files (Frontend)
 app.use(express.static(path.join(__dirname, 'views')));
 
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', service: 'FinTrack Pro' });
+});
+
 // Database connection check middleware for API routes
 app.use('/api', (req, res, next) => {
   const mongoose = require('mongoose');
@@ -37,16 +41,30 @@ app.use('/api', (req, res) => {
 
 const PORT = process.env.PORT || 5000;
 
-// Initialize DB
+// Initialize DB without blocking the function startup
 connectDB().catch(err => {
-  console.error("Critical Failure:", err);
+  console.error('Critical Failure:', err);
 });
 
 // Start Server locally
 if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 FinTrack Pro running on http://localhost:${PORT}`);
-  });
+  const startServer = (port) => {
+    const server = app.listen(port, '0.0.0.0', () => {
+      console.log(`🚀 FinTrack Pro running on http://localhost:${port}`);
+    });
+
+    server.on('error', (error) => {
+      if (error.code === 'EADDRINUSE') {
+        console.warn(`Port ${port} is busy. Trying ${port + 1}...`);
+        server.close(() => startServer(port + 1));
+      } else {
+        console.error('Server failed to start:', error);
+        process.exit(1);
+      }
+    });
+  };
+
+  startServer(PORT);
 }
 
 module.exports = app;

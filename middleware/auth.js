@@ -1,5 +1,7 @@
 const jwt = require('jsonwebtoken');
 
+const getJwtSecret = () => process.env.JWT_SECRET || process.env.jwt_secret;
+
 const verifyToken = (req, res, next) => {
   const token = req.headers['authorization']?.split(' ')[1];
   
@@ -7,7 +9,7 @@ const verifyToken = (req, res, next) => {
     return res.status(401).json({ error: 'No token provided' });
   }
   
-  const secret = process.env.JWT_SECRET;
+  const secret = getJwtSecret();
   if (!secret) {
     console.error("❌ ERROR: JWT_SECRET environment variable is not defined!");
     return res.status(500).json({ error: 'JWT_SECRET environment variable is missing on the server' });
@@ -25,7 +27,7 @@ const verifyToken = (req, res, next) => {
 
 const isAuthenticated = (req, res, next) => {
   const token = req.headers['authorization']?.split(' ')[1];
-  const secret = process.env.JWT_SECRET;
+  const secret = getJwtSecret();
   
   if (token && secret) {
     try {
