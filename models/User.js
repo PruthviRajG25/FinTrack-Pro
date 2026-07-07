@@ -5,6 +5,7 @@ const userSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true, lowercase: true, trim: true },
   password: { type: String, required: true },
   name: { type: String, required: true },
+  githubId: { type: String, default: null },
   monthly_budget: { type: Number, default: null },
   created_at: { type: Date, default: Date.now }
 });
@@ -77,6 +78,38 @@ class User {
   static async verifyPassword(hashedPassword, plainPassword) {
     if (!hashedPassword || !plainPassword) return false;
     return bcrypt.compare(plainPassword, hashedPassword);
+  }
+
+  static async findOrCreateGithubUser(email, name, githubId) {
+    if (!email) throw new Error('Email is required');
+    
+    let userDoc = await UserModel.findOne({
+      $or: [
+        { githubId: githubId },
+        { email: email.toLowerCase() }
+      ]
+    });
+    
+    if (userDoc) {
+      if (!userDoc.githubId) {
+        userDoc.githubId = githubId;
+        await userDoc.save();
+      }
+      return userDoc.toJSON();
+    }
+    
+    const crypto = require('crypto');
+    const randomPassword = crypto.randomBytes(16).toString('hex');
+    const hashedPassword = await bcrypt.hash(randomPassword, 10);
+    
+    const newUser = await UserModel.create({
+      email: email.toLowerCase(),
+      password: hashedPassword,
+      name,
+      githubId
+    });
+    
+    return newUser.toJSON();
   }
 }
 

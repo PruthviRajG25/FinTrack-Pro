@@ -56,6 +56,115 @@ class AuthController {
     }
   }
 
+  static async getConfig(req, res) {
+    res.json({
+      githubClientId: process.env.GITHUB_CLIENT_ID || null
+    });
+  }
+
+  static async githubLogin(req, res) {
+    try {
+      const { code } = req.body;
+      if (!code) {
+        return res.status(400).json({ error: 'GitHub authorization code is required' });
+      }
+
+      const client_id = process.env.GITHUB_CLIENT_ID;
+      const client_secret = process.env.GITHUB_CLIENT_SECRET;
+
+      if (!client_id || !client_secret) {
+        console.error('❌ ERROR: GITHUB_CLIENT_ID or GITHUB_CLIENT_SECRET environment variable is not defined!');
+        return res.status(500).json({ error: 'GitHub OAuth is not configured on the server. Please add GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET to your .env file.' });
+      }
+
+      // 1. Exchange the code for a GitHub access token
+      const tokenResponse = await fetch('https://github.com/login/oauth/access_token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          client_id,
+          client_secret,
+          code
+        })
+      });
+
+      const tokenData = await tokenResponse.json();
+      if (tokenData.error) {
+        console.error('Error exchanging GitHub code:', tokenData);
+        return res.status(400).json({ error: tokenData.error_description || 'Failed to exchange GitHub authorization code' });
+      }
+
+      const accessToken = tokenData.access_token;
+      if (!accessToken) {
+        return res.status(400).json({ error: 'GitHub access token not received' });
+      }
+
+      // 2. Fetch the user profile from GitHub
+      const userResponse = await fetch('https://api.github.com/user', {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'User-Agent': 'FinTrack-Pro-App'
+        }
+      });
+
+      if (!userResponse.ok) {
+        return res.status(400).json({ error: 'Failed to fetch user profile from GitHub' });
+      }
+
+      const userProfile = await userResponse.json();
+      const githubId = String(userProfile.id);
+      const name = userProfile.name || userProfile.login;
+
+      // 3. Fetch user emails
+      let email = userProfile.email;
+      if (!email) {
+        const emailsResponse = await fetch('https://api.github.com/user/emails', {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'User-Agent': 'FinTrack-Pro-App'
+          }
+        });
+        
+        if (emailsResponse.ok) {
+          const emails = await emailsResponse.json();
+          const primaryEmailObj = emails.find(e => e.primary && e.verified) || emails[0];
+          if (primaryEmailObj) {
+            email = primaryEmailObj.email;
+          }
+        }
+      }
+
+      if (!email) {
+        return res.status(400).json({ error: 'Email not provided or accessible on your GitHub account. Please make your email public or verify it on GitHub.' });
+      }
+
+      // 4. Find or create the user in our database
+      const user = await User.findOrCreateGithubUser(email, name, githubId);
+
+      const secret = process.env.JWT_SECRET || process.env.jwt_secret;
+      if (!secret) {
+        console.error('❌ ERROR: JWT_SECRET environment variable is not defined!');
+        return res.status(500).json({ error: 'JWT_SECRET environment variable is missing on the server.' });
+      }
+
+      const token = jwt.sign({ id: user.id, email: user.email }, secret, {
+        expiresIn: '24h',
+      });
+
+      res.json({
+        message: 'Login successful',
+        token,
+        user: { id: user.id, email: user.email, name: user.name },
+      });
+    } catch (error) {
+      console.error('GitHub login error:', error);
+      res.status(500).json({ error: 'GitHub login failed' });
+    }
+  }
+
   static async getProfile(req, res) {
     try {
       const user = await User.findById(req.userId);

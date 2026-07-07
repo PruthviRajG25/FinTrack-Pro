@@ -193,6 +193,57 @@
       to { transform: translateX(0); opacity: 1; }
     }
 
+    /* Divider and GitHub Sign-in */
+    .divider {
+      display: flex;
+      align-items: center;
+      text-align: center;
+      margin: 20px 0;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 500;
+    }
+    .divider::before, .divider::after {
+      content: '';
+      flex: 1;
+      border-bottom: 1px solid var(--border);
+    }
+    .divider:not(:empty)::before { margin-right: .75em; }
+    .divider:not(:empty)::after { margin-left: .75em; }
+    .github-btn-wrapper {
+      margin-top: 5px;
+      margin-bottom: 5px;
+      width: 100%;
+    }
+    .btn-github {
+      width: 100%;
+      padding: 12px;
+      background: #24292f;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 15px;
+      cursor: pointer;
+      transition: all .2s;
+      font-family: inherit;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+    .btn-github:hover {
+      background: #1b1f23;
+      transform: translateY(-1px);
+      box-shadow: 0 8px 20px rgba(36,41,47,0.25);
+    }
+    .btn-github:active {
+      transform: translateY(0);
+    }
+    .btn-github i {
+      font-size: 18px;
+    }
+
     /* Responsive */
     @media (max-width: 960px) {
       body { grid-template-columns: 1fr; }
@@ -281,6 +332,17 @@
           </button>
         </form>
       </div>
+      
+      <div class="divider">
+        <span>or</span>
+      </div>
+      <div class="github-btn-wrapper">
+        <button type="button" class="btn-github" onclick="handleGithubLogin()">
+          <i class="fa-brands fa-github"></i>
+          <span>Continue with GitHub</span>
+        </button>
+      </div>
+
       <div class="footnote">
         Secured with industry-standard JWT auth.<br />
         <span style="display:inline-block;margin-top:6px;">Made with <i class="fa-solid fa-heart" style="color:#f43f5e;"></i> by Pruthvi Raj</span>
@@ -292,6 +354,56 @@
 
   <script>
     const API_URL = '/api';
+    let githubClientId = null;
+
+    // Fetch config and check URL for GitHub OAuth callback code
+    async function loadAuthConfig() {
+      try {
+        const res = await fetch(`${API_URL}/auth/config`);
+        const config = await res.json();
+        githubClientId = config.githubClientId;
+        
+        const urlParams = new URLSearchParams(window.location.search);
+        const code = urlParams.get('code');
+        if (code) {
+          // Clear query code from URI
+          window.history.replaceState({}, document.title, window.location.pathname);
+          await handleGithubCallback(code);
+        }
+      } catch (err) {
+        console.error("Failed to load auth configuration:", err);
+      }
+    }
+
+    function handleGithubLogin() {
+      if (!githubClientId) {
+        toast("GitHub Sign-In is not configured on the server.", "error");
+        return;
+      }
+      window.location.href = `https://github.com/login/oauth/authorize?client_id=${githubClientId}&scope=user:email`;
+    }
+
+    async function handleGithubCallback(code) {
+      toast('Signing in with GitHub…', 'info');
+      try {
+        const res = await fetch(`${API_URL}/auth/github`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'GitHub Sign-In failed');
+
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('user', JSON.stringify(data.user));
+        toast('GitHub login successful! Redirecting…', 'success');
+        setTimeout(() => { window.location.href = 'dashboard.html'; }, 600);
+      } catch (err) {
+        toast(err.message, 'error');
+      }
+    }
+
+    window.addEventListener('DOMContentLoaded', loadAuthConfig);
 
     function switchTab(tab, btn) {
       document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
