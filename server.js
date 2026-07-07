@@ -18,12 +18,24 @@ app.get('/api/health', (req, res) => {
 });
 
 // Database connection check middleware for API routes
-app.use('/api', (req, res, next) => {
+app.use('/api', async (req, res, next) => {
   const mongoose = require('mongoose');
+  
+  // If database is not fully connected, await the connection
+  if (mongoose.connection.readyState !== 1) {
+    try {
+      console.log(`[DB Middleware] Database state is ${mongoose.connection.readyState}. Awaiting connection...`);
+      await connectDB();
+    } catch (err) {
+      console.error('[DB Middleware] Database connection failed:', err);
+    }
+  }
+
   const state = mongoose.connection.readyState;
-  if (state === 0 || state === 3) {
+  if (state !== 1 && state !== 2) {
     return res.status(503).json({
-      error: 'Database connection is not established. If you are running on Vercel, please ensure MONGODB_URI is correctly configured in your Project Settings (Environment Variables).'
+      error: 'Database connection is not established. If you are running on Vercel, please ensure MONGODB_URI is correctly configured in your Project Settings (Environment Variables).',
+      details: `Current connection state: ${state}`
     });
   }
   next();
